@@ -1,0 +1,1116 @@
+/* ============================================================
+   MAUSAM — Indian Weather Dashboard
+
+   ============================================================ */
+
+/* CSS Variables & Themes Configuration */
+:root {
+    --bg-gradient: linear-gradient(135deg, #0f1016 0%, #151821 100%);
+    --card-bg: rgba(23, 27, 38, 0.65);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --saffron: #FF9933;
+    --gold: #FFC72C;
+    --green-accent: #2E7D32;
+    --white: #ffffff;
+    --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Active Accent Defaults */
+    --accent: var(--saffron);
+    --accent-glow: rgba(255, 153, 51, 0.35);
+    --accent-dark: #cc7a29;
+}
+
+/* Seasonal CSS Themes */
+body.theme-spring {
+    --bg-gradient: linear-gradient(135deg, #0e120f 0%, #131b15 100%);
+    --accent: #E5A93B;
+    --accent-glow: rgba(229, 169, 59, 0.35);
+    --accent-dark: #b88123;
+}
+
+body.theme-summer {
+    --bg-gradient: linear-gradient(135deg, #150f0b 0%, #20140e 100%);
+    --accent: var(--saffron);
+    --accent-glow: rgba(255, 153, 51, 0.35);
+    --accent-dark: #cc7a29;
+}
+
+body.theme-monsoon {
+    --bg-gradient: linear-gradient(135deg, #071011 0%, #0d1a1c 100%);
+    --accent: #00897B;
+    --accent-glow: rgba(0, 137, 123, 0.35);
+    --accent-dark: #004D40;
+}
+
+body.theme-winter {
+    --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #121829 100%);
+    --accent: #5C6BC0;
+    --accent-glow: rgba(92, 107, 192, 0.35);
+    --accent-dark: #3F51B5;
+}
+
+/* Base resets */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Outfit', sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 16px;
+    transition: var(--transition);
+}
+
+/* ============================================================
+   LAYOUT CONTAINER — Fixed structure, no flex-grow chaos
+   ============================================================ */
+.app-container {
+    max-width: 1400px;
+    min-width: 360px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ============================================================
+   HEADER — Logo + Search bar
+   ============================================================ */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.logo-icon {
+    font-size: 1.6rem;
+    color: var(--accent);
+    text-shadow: 0 0 15px var(--accent-glow);
+    animation: rotateCompass 15s linear infinite;
+    display: inline-block;
+}
+
+.logo-text h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: linear-gradient(to right, #ffffff, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.sub-logo {
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+    display: block;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* Search bar styling */
+.search-section {
+    flex: 1 1 300px;
+    max-width: 550px;
+    min-width: 200px;
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--card-border);
+    border-radius: 50px;
+    padding: 4px 8px 4px 16px;
+    transition: var(--transition);
+}
+
+.search-input-wrapper:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 15px var(--accent-glow);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.search-icon {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+#city-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    padding: 6px 0;
+    min-width: 0;
+}
+
+#city-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.geo-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 50%;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.geo-btn:hover {
+    background: var(--accent);
+    color: #000000;
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+/* ============================================================
+   QUICK CITIES PILLS
+   ============================================================ */
+.quick-cities {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.city-pill {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    border-radius: 30px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.pill-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.city-pill:hover {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.city-pill.active {
+    color: var(--text-primary);
+    border-color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.city-pill.active .pill-dot {
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+}
+
+/* ============================================================
+   MAIN DASHBOARD GRID — FIXED two-column layout
+   Left: main content | Right: 24-hour sidebar (fixed 230px)
+   ============================================================ */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 230px;
+    gap: 10px;
+    align-items: start;
+}
+
+/* ============================================================
+   CARDS — Glassmorphic base style
+   ============================================================ */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 14px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+   LEFT COLUMN (col-center) — stacked vertically
+   ============================================================ */
+.col-center {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0; /* Prevent grid blowout */
+}
+
+/* Top row: Hero card (left) + Info stack (right) */
+.center-top-row {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 10px;
+    align-items: stretch;
+}
+
+/* ============================================================
+   HERO WEATHER CARD — fixed minimum height, image background
+   ============================================================ */
+.hero-card {
+    min-height: 340px;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 16px 20px;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+body.theme-spring .hero-card {
+    background-image: url('../images/spring_marigold.jpg');
+}
+
+body.theme-summer .hero-card {
+    background-image: url('../images/summer_gold.jpg');
+}
+
+body.theme-monsoon .hero-card {
+    background-image: url('../images/monsoon_green.jpg');
+}
+
+body.theme-winter .hero-card {
+    background-image: url('../images/winter_blue.jpg');
+}
+
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(15, 17, 26, 0.1) 0%, rgba(15, 17, 26, 0.8) 100%);
+    z-index: -1;
+    transition: var(--transition);
+}
+
+.hero-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.location-datetime h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+    word-break: break-word;
+}
+
+.location-datetime p {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-top: 2px;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+}
+
+.temp-condition-block {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.temp-display {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    font-family: 'Poppins', sans-serif;
+    text-shadow: 0 5px 15px rgba(0, 0, 0, 0.7);
+    flex-shrink: 0;
+}
+
+.temp-unit {
+    font-size: 1.4rem;
+    font-weight: 300;
+    vertical-align: super;
+    color: var(--accent);
+}
+
+.condition-display {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.condition-display i {
+    font-size: 1.6rem;
+    color: var(--accent);
+    filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+.condition-display span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+#feels-like {
+    font-size: 0.82rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+/* Sanskrit Ritu badge on Hero Card */
+.ritu-badge {
+    align-self: flex-start;
+    background: rgba(15, 17, 26, 0.75);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 15px var(--accent-glow);
+    padding: 8px 14px;
+    border-radius: 10px;
+    max-width: 100%;
+    animation: goldGlow 6s infinite ease-in-out;
+}
+
+.ritu-label {
+    font-size: 0.58rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+.ritu-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.ritu-english {
+    font-size: 0.68rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ritu-desc {
+    font-size: 0.7rem;
+    line-height: 1.3;
+    color: var(--text-secondary);
+}
+
+/* ============================================================
+   INFO STACK — Right side of center-top-row
+   Parameters, AQI, Guidance — each with constrained height
+   ============================================================ */
+.info-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+/* Sun & Weather parameters 2x2 grid */
+.parameters-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.param-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+}
+
+.param-icon {
+    font-size: 1.1rem;
+    color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--card-border);
+    flex-shrink: 0;
+}
+
+.param-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.param-info span {
+    font-size: 0.63rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.param-info strong {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* ============================================================
+   AQI CARD — Compact, constrained
+   ============================================================ */
+.aqi-card-compact {
+    border-left: 4px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+}
+
+.aqi-compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.aqi-compact-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+    min-width: 0;
+}
+
+.aqi-compact-title i {
+    font-size: 1.2rem;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.aqi-compact-title h3 {
+    font-size: 0.82rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.aqi-compact-title span {
+    font-family: 'Poppins', sans-serif;
+    color: var(--accent);
+}
+
+.aqi-compact-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.aqi-status-badge {
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.aqi-impact-text {
+    font-size: 0.75rem;
+    line-height: 1.3;
+    color: var(--text-secondary);
+}
+
+/* Indian Air Quality standard segment scale */
+.aqi-scale-bar {
+    height: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    gap: 2px;
+    margin-top: 2px;
+}
+
+.scale-seg {
+    flex: 1;
+    height: 100%;
+}
+
+.scale-seg.good { background-color: #2E7D32; }
+.scale-seg.satisfactory { background-color: #4CAF50; }
+.scale-seg.moderate { background-color: #FBC02D; }
+.scale-seg.poor { background-color: #F57C00; }
+.scale-seg.verypoor { background-color: #D32F2F; }
+.scale-seg.severe { background-color: #B71C1C; }
+
+/* ============================================================
+   GUIDANCE CARD — Wellness Tips & Poshak Guide (tabbed)
+   Fixed max-height so it never eats up space
+   ============================================================ */
+.guidance-card {
+    padding: 0;
+}
+
+.guidance-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.tab-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 10px 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: var(--transition);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.guidance-content {
+    padding: 10px 14px;
+    max-height: 130px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.guidance-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.guidance-content::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.recs-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.recs-list li {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+
+.recs-list li::before {
+    content: "•";
+    color: var(--accent);
+    font-size: 1rem;
+    line-height: 1;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   7-DAY FORECAST — Fixed height, scrollable if overflow
+   ============================================================ */
+.forecast-card {
+    max-height: 320px;
+    overflow: hidden;
+}
+
+.forecast-card h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    flex-shrink: 0;
+}
+
+.daily-forecast-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 270px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.daily-forecast-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.daily-forecast-list::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+
+.daily-item {
+    display: grid;
+    grid-template-columns: 1.2fr 0.7fr 1.1fr 1fr;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    transition: var(--transition);
+    min-height: 36px;
+}
+
+.daily-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.daily-day-block {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.daily-day {
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+.daily-date {
+    font-size: 0.63rem;
+    color: var(--text-secondary);
+}
+
+.daily-rain-prob {
+    font-size: 0.66rem;
+    color: #448AFF;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.daily-weather-block {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    min-width: 0;
+}
+
+.daily-weather-block i {
+    font-size: 0.9rem;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.daily-weather-block span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.daily-temp-block {
+    text-align: right;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
+.daily-temp-max {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.daily-temp-min {
+    color: var(--text-secondary);
+    margin-left: 4px;
+    font-weight: 400;
+}
+
+/* ============================================================
+   RIGHT SIDEBAR — 24-Hour Forecast (FIXED width, scrollable)
+   This was the main problem area — now constrained properly
+   ============================================================ */
+.col-hourly-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 12px;
+    align-self: start;
+    max-height: calc(100vh - 140px);
+}
+
+.hourly-sidebar-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: calc(100vh - 140px);
+    padding: 12px !important;
+    overflow: hidden;
+}
+
+.hourly-sidebar-card h3 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.hourly-sidebar-card h3 i {
+    font-size: 0.95rem;
+}
+
+/* Vertical hourly list — scrollable within fixed container */
+.hourly-vertical-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.hourly-vertical-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.hourly-vertical-list::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+}
+
+/* Hourly items — compact row layout */
+.hourly-item {
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+    min-height: 32px;
+}
+
+.hourly-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.hourly-time {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 40px;
+    flex-shrink: 0;
+}
+
+.hourly-item i {
+    font-size: 0.85rem;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.hourly-temp {
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+/* Chart container (hidden by default, shown by JS) */
+.chart-container {
+    position: relative;
+    height: 100px;
+    width: 100%;
+    margin-top: 8px;
+    display: none;
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+.app-footer-credits {
+    text-align: center;
+    padding: 8px 0;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes rotateCompass {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes goldGlow {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 199, 44, 0.1); border-color: rgba(255, 199, 44, 0.2); }
+    50% { box-shadow: 0 0 22px rgba(255, 199, 44, 0.35); border-color: rgba(255, 199, 44, 0.6); }
+}
+
+/* ============================================================
+   LOADING OVERLAY SCREEN
+   ============================================================ */
+#loader-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #0f1016;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+#loader-wrapper.fade-out {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.loader-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loader-mandala {
+    font-size: 3.5rem;
+    color: var(--saffron);
+    text-shadow: 0 0 20px rgba(255, 153, 51, 0.4);
+    animation: rotateMandala 2.5s infinite linear;
+}
+
+.loader-content h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #ffffff;
+    margin: 0;
+}
+
+.loader-content p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+}
+
+@keyframes rotateMandala {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS — Properly stacked on small screens
+   ============================================================ */
+
+/* Tablet / Half-window — stack sidebar below */
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .col-hourly-sidebar {
+        position: static;
+        max-height: none;
+    }
+
+    .hourly-sidebar-card {
+        max-height: 350px;
+    }
+
+    .hourly-vertical-list {
+        max-height: 280px;
+    }
+}
+
+/* Medium screens — stack hero and info stack */
+@media (max-width: 850px) {
+    .center-top-row {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-card {
+        min-height: 280px;
+    }
+}
+
+/* Mobile / Small screens */
+@media (max-width: 600px) {
+    body {
+        padding: 8px 10px;
+    }
+
+    .app-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-section {
+        max-width: 100%;
+        flex: 1 1 auto;
+    }
+
+    .hero-card {
+        min-height: 260px;
+        padding: 14px;
+    }
+
+    .temp-display {
+        font-size: 2.6rem;
+    }
+
+    .location-datetime h2 {
+        font-size: 1.2rem;
+    }
+
+    .parameters-row {
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+    }
+
+    .daily-item {
+        grid-template-columns: 1fr 0.6fr 1fr 0.8fr;
+        padding: 5px 8px;
+        font-size: 0.7rem;
+    }
+
+    .forecast-card {
+        max-height: none;
+    }
+
+    .daily-forecast-list {
+        max-height: none;
+    }
+
+    .hourly-sidebar-card {
+        max-height: 300px;
+    }
+
+    .quick-cities {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+
+    .quick-cities::-webkit-scrollbar {
+        height: 3px;
+    }
+
+    .quick-cities::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+    }
+}

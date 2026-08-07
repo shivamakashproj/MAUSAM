@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mausam - Indian Weather App</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Outfit:wght@300;400;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Main Style Sheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="theme-spring"> <!-- Dynamically updated by JS (theme-spring, theme-summer, theme-monsoon, theme-winter) -->
+    
+    <!-- Loading Overlay -->
+    <div id="loader-wrapper">
+        <div class="loader-content">
+            <div class="loader-mandala">
+                <i class="bi bi-compass"></i>
+            </div>
+            <h2>MAUSAM</h2>
+            <p>Fetching weather & air quality details...</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        
+        <!-- Sidebar or Header Panel -->
+        <header class="app-header">
+            <div class="logo-container">
+                <span class="logo-icon"><i class="bi bi-compass"></i></span>
+                <div class="logo-text">
+                    <h1>MAUSAM</h1>
+                    <span class="sub-logo">मौसम • Indian Weather Dashboard</span>
+                </div>
+            </div>
+            
+            <div class="search-section">
+                <form id="search-form" class="search-form">
+                    <div class="search-input-wrapper">
+                        <i class="bi bi-search search-icon"></i>
+                        <input type="text" id="city-input" placeholder="Search Indian cities (e.g. Pune, Shimla, Guwahati)..." autocomplete="off">
+                        <button type="button" id="geo-btn" class="geo-btn" title="Use current location">
+                            <i class="bi bi-geo-alt"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </header>
+
+        <!-- Quick Select Cities -->
+        <section class="quick-cities">
+            <button class="city-pill active" data-city="New Delhi"><span class="pill-dot"></span> Delhi</button>
+            <button class="city-pill" data-city="Mumbai"><span class="pill-dot"></span> Mumbai</button>
+            <button class="city-pill" data-city="Bengaluru"><span class="pill-dot"></span> Bengaluru</button>
+            <button class="city-pill" data-city="Srinagar"><span class="pill-dot"></span> Srinagar</button>
+            <button class="city-pill" data-city="Jaipur"><span class="pill-dot"></span> Jaipur</button>
+            <button class="city-pill" data-city="Kochi"><span class="pill-dot"></span> Kochi</button>
+            <button class="city-pill" data-city="Kolkata"><span class="pill-dot"></span> Kolkata</button>
+            <button class="city-pill" data-city="Patna"><span class="pill-dot"></span> Patna</button>
+        </section>
+
+        <!-- Main Dashboard Layout -->
+        <main class="dashboard-grid">
+            
+            <!-- CENTER: Main Weather Info -->
+            <div class="col-center">
+                
+                <!-- Top Row: Hero + Parameters -->
+                <div class="center-top-row">
+                    <!-- Main Hero Weather Card -->
+                    <div class="card hero-card" id="hero-card">
+                        <div class="hero-overlay"></div>
+                        <div class="hero-content">
+                            <div class="location-datetime">
+                                <h2 id="current-city">New Delhi, Delhi</h2>
+                                <p id="current-date">Wednesday, August 5, 2026</p>
+                            </div>
+                            
+                            <div class="temp-condition-block">
+                                <div class="temp-display">
+                                    <span id="current-temp">32</span><span class="temp-unit">°C</span>
+                                </div>
+                                <div class="condition-display">
+                                    <i id="weather-icon" class="bi bi-cloud-sun-fill"></i>
+                                    <span id="weather-desc">Partly Cloudy</span>
+                                    <span id="feels-like">Feels like 35°C</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Live Weather Status Banner -->
+                            <div class="weather-status-banner" id="weather-status-banner">
+                                <span class="status-text" id="weather-status-text">☀️ Warm sunshine — Beautiful weather for outdoor activities</span>
+                            </div>
+                            
+                            <!-- Ritu Season Indicator -->
+                            <div class="ritu-badge" id="ritu-badge">
+                                <div class="ritu-label">Current Ritu (ऋतु):</div>
+                                <div class="ritu-title" id="ritu-title">Grishma (ग्रीष्म)</div>
+                                <div class="ritu-english" id="ritu-english">Summer</div>
+                                <p class="ritu-desc" id="ritu-desc">The hot season of bright sun, dusty dry winds (Loo), and ripening mangoes.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right side info stack -->
+                    <div class="info-stack">
+                        <!-- Sun & Parameters Row -->
+                        <div class="parameters-row">
+                            <div class="card param-card">
+                                <div class="param-icon"><i class="bi bi-sunrise"></i></div>
+                                <div class="param-info">
+                                    <span>Sunrise</span>
+                                    <strong id="sunrise-val">05:42 AM</strong>
+                                </div>
+                            </div>
+                            <div class="card param-card">
+                                <div class="param-icon"><i class="bi bi-sunset"></i></div>
+                                <div class="param-info">
+                                    <span>Sunset</span>
+                                    <strong id="sunset-val">07:11 PM</strong>
+                                </div>
+                            </div>
+                            <div class="card param-card">
+                                <div class="param-icon"><i class="bi bi-wind"></i></div>
+                                <div class="param-info">
+                                    <span>Wind Speed</span>
+                                    <strong id="wind-val">12 km/h</strong>
+                                </div>
+                            </div>
+                            <div class="card param-card">
+                                <div class="param-icon"><i class="bi bi-droplet-half"></i></div>
+                                <div class="param-info">
+                                    <span>Humidity</span>
+                                    <strong id="humidity-val">68%</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AQI Index Card (Compact) -->
+                        <div class="card aqi-card-compact" id="aqi-card">
+                            <div class="aqi-compact-header">
+                                <div class="aqi-compact-title">
+                                    <i class="bi bi-wind"></i>
+                                    <h3>Air Quality: <span id="aqi-value">45</span> PM2.5 (µg/m³)</h3>
+                                </div>
+                                <span class="aqi-status-badge" id="aqi-badge">Good</span>
+                            </div>
+                            <div class="aqi-compact-body">
+                                <p class="aqi-impact-text" id="aqi-desc">Minimal health impact. Perfect weather for outdoor yoga and morning walks.</p>
+                                
+                                <!-- Indian standard reference bar -->
+                                <div class="aqi-scale-bar">
+                                    <span class="scale-seg good" title="0-30 Good"></span>
+                                    <span class="scale-seg satisfactory" title="31-60 Satisfactory"></span>
+                                    <span class="scale-seg moderate" title="61-90 Moderate"></span>
+                                    <span class="scale-seg poor" title="91-120 Poor"></span>
+                                    <span class="scale-seg verypoor" title="121-250 Very Poor"></span>
+                                    <span class="scale-seg severe" title="250+ Severe"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Guidance Board: Clothing & Health Tips -->
+                        <div class="card guidance-card">
+                            <div class="guidance-tabs">
+                                <button class="tab-btn active" data-tab="tips"><i class="bi bi-heart-pulse"></i> Wellness Tips</button>
+                                <button class="tab-btn" data-tab="clothing"><i class="bi bi-handbag"></i> Poshak Guide</button>
+                            </div>
+                            
+                            <div class="guidance-content">
+                                <div class="tab-pane active" id="pane-tips">
+                                    <ul class="recs-list" id="tips-list">
+                                        <!-- Populated dynamically by JS -->
+                                    </ul>
+                                </div>
+                                <div class="tab-pane" id="pane-clothing">
+                                    <div class="clothing-gender-section">
+                                        <div class="gender-label"><i class="bi bi-person-standing"></i> For Men</div>
+                                        <ul class="recs-list" id="clothing-men-list">
+                                            <!-- Populated dynamically by JS -->
+                                        </ul>
+                                    </div>
+                                    <div class="clothing-divider"></div>
+                                    <div class="clothing-gender-section">
+                                        <div class="gender-label"><i class="bi bi-person-standing-dress"></i> For Women</div>
+                                        <ul class="recs-list" id="clothing-women-list">
+                                            <!-- Populated dynamically by JS -->
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7-Day Forecast -->
+                <div class="card forecast-card">
+                    <h3>7-Day Outlook</h3>
+                    <div class="daily-forecast-list" id="daily-forecast-list">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                </div>
+                
+            </div>
+
+            <!-- RIGHT SIDEBAR: 24-Hour Forecast -->
+            <aside class="col-hourly-sidebar">
+                <div class="card hourly-sidebar-card">
+                    <h3><i class="bi bi-clock-history"></i> 24-Hour Forecast</h3>
+                    <div class="hourly-vertical-list" id="hourly-forecast-list">
+                        <!-- Populated dynamically by JS -->
+                    </div>
+                    <!-- Temperature Trend Canvas Chart -->
+                    <div class="chart-container">
+                        <canvas id="tempTrendChart"></canvas>
+                    </div>
+                </div>
+            </aside>
+            
+        </main>
+        
+        <footer class="app-footer-credits">
+            <p>Developed By Shivam Akash • Powered by Open-Meteo & Air Quality APIs</p>
+        </footer>
+    </div>
+
+    <!-- Chart.js for beautiful temperature trends -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Main JS Script -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
