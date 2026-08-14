@@ -1,5 +1,13 @@
+import os
 import requests
 import datetime
+from dotenv import load_dotenv
+
+# Load .env variables (safe to call multiple times)
+load_dotenv()
+
+# Optional: Open-Meteo Pro API key (leave blank for free tier)
+OPEN_METEO_API_KEY = os.environ.get("OPEN_METEO_API_KEY", "").strip()
 
 # Indian Seasons (Ritus) Calculation
 def get_indian_ritu(date_obj):
@@ -301,6 +309,7 @@ def get_weather_data(city_name=None, lat=None, lon=None):
             full_location = f"Coordinates ({lat:.2f}, {lon:.2f})"
         
         # Step 2: Fetch Weather Data
+        _api_key_param = f"&apikey={OPEN_METEO_API_KEY}" if OPEN_METEO_API_KEY else ""
         weather_url = (
             f"https://api.open-meteo.com/v1/forecast?"
             f"latitude={lat}&longitude={lon}"
@@ -308,18 +317,32 @@ def get_weather_data(city_name=None, lat=None, lon=None):
             f"&hourly=temperature_2m,relative_humidity_2m,weather_code"
             f"&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max"
             f"&timezone=auto"
+            f"{_api_key_param}"
         )
         weather_response = requests.get(weather_url, timeout=10)
+        weather_response.raise_for_status()
         weather_data = weather_response.json()
+
+        # Validate API response structure
+        if "current" not in weather_data:
+            reason = weather_data.get("reason", "Unexpected response from weather API")
+            return {"error": f"Weather API error: {reason}"}
         
         # Step 3: Fetch AQI Data
         aqi_url = (
             f"https://air-quality-api.open-meteo.com/v1/air-quality?"
             f"latitude={lat}&longitude={lon}"
             f"&current=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"
+            f"{_api_key_param}"
         )
         aqi_response = requests.get(aqi_url, timeout=10)
+        aqi_response.raise_for_status()
         aqi_data = aqi_response.json()
+
+        # Validate AQI response structure
+        if "current" not in aqi_data:
+            reason = aqi_data.get("reason", "Unexpected response from AQI API")
+            return {"error": f"AQI API error: {reason}"}
         
         # Parse Current Weather
         current = weather_data["current"]
