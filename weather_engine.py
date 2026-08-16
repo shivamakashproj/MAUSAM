@@ -1,6 +1,8 @@
 import os
 import requests
 import datetime
+import time
+import threading
 from dotenv import load_dotenv
 
 # Load .env variables (safe to call multiple times)
@@ -8,6 +10,67 @@ load_dotenv()
 
 # Optional: Open-Meteo Pro API key (leave blank for free tier)
 OPEN_METEO_API_KEY = os.environ.get("OPEN_METEO_API_KEY", "").strip()
+
+# In-memory cache to reduce repeated Open-Meteo requests on Render.
+# No API key is required when OPEN_METEO_API_KEY is blank.
+_WEATHER_CACHE = {}
+_CACHE_LOCK = threading.Lock()
+WEATHER_CACHE_TTL = 600       # 10 minutes
+GEOCODE_CACHE_TTL = 86400    # 24 hours
+STALE_CACHE_TTL = 3600       # Allow stale data for up to 1 hour after a rate-limit response
+
+def _cache_get(key, allow_stale=False):
+    now = time.time()
+    with _CACHE_LOCK:
+        item = _WEATHER_CACHE.get(key)
+        if not item:
+            return None
+        value, saved_at, ttl = item
+        age = now - saved_at
+        if age <= ttl:
+            return value
+        if allow_stale and age <= ttl + STALE_CACHE_TTL:
+            return value
+        _WEATHER_CACHE.pop(key, None)
+        return None
+
+def _cache_set(key, value, ttl):
+    with _CACHE_LOCK:
+        _WEATHER_CACHE[key] = (value, time.time(), ttl)
+
+def _get_json(url, cache_key, ttl, label):
+    # Serve a fresh cached response whenever possible.
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        print(f"Cache hit: {label}")
+        return cached
+
+    try:
+        response = requests.get(url, timeout=10)
+
+        # Do not keep hammering Open-Meteo after a 429. If we have recent
+        # stale data, use it instead of failing the whole dashboard.
+        if response.status_code == 429:
+            stale = _cache_get(cache_key, allow_stale=True)
+            if stale is not None:
+                print(f"Open-Meteo rate limited {label}; using stale cached data.")
+                return stale
+            raise RuntimeError(
+                f"Open-Meteo rate limit reached for {label}. "
+                "Please wait a few minutes and try again."
+            )
+
+        response.raise_for_status()
+        data = response.json()
+        _cache_set(cache_key, data, ttl)
+        return data
+
+    except requests.RequestException as exc:
+        stale = _cache_get(cache_key, allow_stale=True)
+        if stale is not None:
+            print(f"Request failed for {label}; using stale cached data: {exc}")
+            return stale
+        raise
 
 # Indian Seasons (Ritus) Calculation
 def get_indian_ritu(date_obj):
@@ -282,8 +345,8 @@ def get_weather_data(city_name=None, lat=None, lon=None):
         # Step 1: Geocoding if city_name is provided
         if city_name:
             geocode_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}&count=5&language=en&format=json"
-            geo_response = requests.get(geocode_url, timeout=10)
-            geo_data = geo_response.json()
+            geo_cache_key = f"geocode:{city_name.strip().lower()}"
+            geo_data = _get_json(geocode_url, geo_cache_key, GEOCODE_CACHE_TTL, "geocoding")
             
             if "results" not in geo_data or not geo_data["results"]:
                 return {"error": f"City '{city_name}' not found. Please try another Indian city."}
@@ -319,9 +382,8 @@ def get_weather_data(city_name=None, lat=None, lon=None):
             f"&timezone=auto"
             f"{_api_key_param}"
         )
-        weather_response = requests.get(weather_url, timeout=10)
-        weather_response.raise_for_status()
-        weather_data = weather_response.json()
+        weather_cache_key = f"weather:{round(float(lat), 3)}:{round(float(lon), 3)}:{_api_key_param}"
+        weather_data = _get_json(weather_url, weather_cache_key, WEATHER_CACHE_TTL, "weather forecast")
 
         # Validate API response structure
         if "current" not in weather_data:
@@ -335,9 +397,8 @@ def get_weather_data(city_name=None, lat=None, lon=None):
             f"&current=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"
             f"{_api_key_param}"
         )
-        aqi_response = requests.get(aqi_url, timeout=10)
-        aqi_response.raise_for_status()
-        aqi_data = aqi_response.json()
+        aqi_cache_key = f"aqi:{round(float(lat), 3)}:{round(float(lon), 3)}:{_api_key_param}"
+        aqi_data = _get_json(aqi_url, aqi_cache_key, WEATHER_CACHE_TTL, "air quality")
 
         # Validate AQI response structure
         if "current" not in aqi_data:
