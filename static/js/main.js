@@ -44,9 +44,24 @@ const dailyForecastList = document.getElementById('daily-forecast-list');
 let tempChartInstance = null;
 
 // Initialize App
-document.addEventListener('DOMContentLoaded', () => {
-    // Load default city (New Delhi)
-    fetchWeatherByCity('New Delhi');
+document.addEventListener('DOMContentLoaded', async () => {
+    // Try to auto-detect user's city via IP Geolocation
+    try {
+        const ipGeoRes = await fetch('https://get.geojs.io/v1/ip/geo.json');
+        if (ipGeoRes.ok) {
+            const geoData = await ipGeoRes.json();
+            if (geoData && geoData.city) {
+                fetchWeatherByCity(geoData.city);
+            } else {
+                fetchWeatherByCity('New Delhi');
+            }
+        } else {
+            fetchWeatherByCity('New Delhi');
+        }
+    } catch (err) {
+        console.error("IP Geolocation failed, falling back to New Delhi", err);
+        fetchWeatherByCity('New Delhi');
+    }
     
     // Set up search handler
     searchForm.addEventListener('submit', (e) => {
@@ -330,9 +345,9 @@ function renderTempChart(hourlyForecast) {
                         display: false
                     },
                     ticks: {
-                        color: 'rgba(255, 255, 255, 0.5)',
+                        color: 'rgba(255, 255, 255, 0.8)',
                         font: {
-                            size: 9
+                            size: 10
                         }
                     }
                 },
@@ -341,9 +356,9 @@ function renderTempChart(hourlyForecast) {
                         color: 'rgba(255, 255, 255, 0.05)'
                     },
                     ticks: {
-                        color: 'rgba(255, 255, 255, 0.5)',
+                        color: 'rgba(255, 255, 255, 0.8)',
                         font: {
-                            size: 9
+                            size: 10
                         }
                     }
                 }

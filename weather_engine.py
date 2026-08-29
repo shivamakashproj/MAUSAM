@@ -13,26 +13,8 @@ load_dotenv()
 OPEN_METEO_API_KEY = os.environ.get("OPEN_METEO_API_KEY", "").strip()
 
 # ---------------------------------------------------------------------------
-# FUTURE API TEMPLATE — COMMENTED ON PURPOSE
-# ---------------------------------------------------------------------------
-# If you get another weather API in the future, DO NOT put the key here.
-# Add it to your local .env / Render Environment Variables instead.
-#
-# Example:
-# WEATHER_API_KEY=your_real_key_here
-#
-# Then uncomment/adapt the provider-specific code below:
-#
-# FUTURE_WEATHER_API_KEY = os.environ.get("WEATHER_API_KEY", "").strip()
-# FUTURE_WEATHER_URL = "https://YOUR-WEATHER-PROVIDER-ENDPOINT"
-# headers = {"Authorization": f"Bearer {FUTURE_WEATHER_API_KEY}"}
-# response = requests.get(FUTURE_WEATHER_URL, headers=headers, timeout=10)
-# response.raise_for_status()
-# data = response.json()
-#
-# IMPORTANT: Every weather provider has a different URL, authentication
-# method, and JSON structure. Configure this section only after choosing
-# the provider. Keep the API key in an environment variable, never GitHub.
+# Note: Weather data is fetched using Open-Meteo's free API tier.
+# Open-Meteo does not require an API key by default for non-commercial use.
 # ---------------------------------------------------------------------------
 
 # Dependency-free in-memory cache for localhost and Render.
@@ -333,203 +315,213 @@ def get_recommendations(temp, is_rainy, aqi_category, weather_code):
         "clothing_men": clothing_men,
         "clothing_women": clothing_women
     }
+# Use a global lock to prevent concurrent identical requests hitting the API at the exact same time
+_FETCH_LOCK = threading.Lock()
+
 def get_weather_data(city_name=None, lat=None, lon=None):
     """Fetch Open-Meteo data with caching and graceful 429 fallback."""
     cache_key = None
     stale_result = None
-    try:
-        # 1) Geocode only when needed, and cache the result for 24 hours.
-        if city_name:
-            normalized_city = " ".join(city_name.strip().lower().split())
-            geo_cached, _ = _cache_get(_GEOCODE_CACHE, normalized_city, GEOCODE_CACHE_TTL)
-            if geo_cached:
-                match = geo_cached
+    
+    with _FETCH_LOCK:
+        try:
+            # 1) Geocode only when needed, and cache the result for 24 hours.
+            if city_name:
+                normalized_city = " ".join(city_name.strip().lower().split())
+                geo_cached, _ = _cache_get(_GEOCODE_CACHE, normalized_city, GEOCODE_CACHE_TTL)
+                if geo_cached:
+                    match = geo_cached
+                else:
+                    geocode_url = (
+                        "https://geocoding-api.open-meteo.com/v1/search"
+                        f"?name={requests.utils.quote(city_name)}&count=5&language=en&format=json"
+                    )
+                    # Simple retry mechanism for geocoding
+                    for attempt in range(3):
+                        geo_response = requests.get(geocode_url, timeout=10)
+                        if geo_response.status_code != 429:
+                            break
+                        time.sleep(1) # Wait if rate limited
+                    geo_response.raise_for_status()
+                    geo_data = geo_response.json()
+                    if "results" not in geo_data or not geo_data["results"]:
+                        return {"error": f"City '{city_name}' not found. Please try another Indian city."}
+                    results = geo_data["results"]
+                    match = results[0]
+                    for r in results:
+                        if r.get("country_code") == "IN":
+                            match = r
+                            break
+                    _cache_set(_GEOCODE_CACHE, normalized_city, match)
+                lat = match["latitude"]
+                lon = match["longitude"]
+                location_name = match["name"]
+                state = match.get("admin1", "")
+                country = match.get("country", "")
+                full_location = f"{location_name}, {state}" if state else location_name
+                if country != "India" and country:
+                    full_location += f", {country}"
             else:
-                geocode_url = (
-                    "https://geocoding-api.open-meteo.com/v1/search"
-                    f"?name={requests.utils.quote(city_name)}&count=5&language=en&format=json"
-                )
-                geo_response = requests.get(geocode_url, timeout=10)
-                geo_response.raise_for_status()
-                geo_data = geo_response.json()
-                if "results" not in geo_data or not geo_data["results"]:
-                    return {"error": f"City '{city_name}' not found. Please try another Indian city."}
-                results = geo_data["results"]
-                match = results[0]
-                for r in results:
-                    if r.get("country_code") == "IN":
-                        match = r
-                        break
-                _cache_set(_GEOCODE_CACHE, normalized_city, match)
-            lat = match["latitude"]
-            lon = match["longitude"]
-            location_name = match["name"]
-            state = match.get("admin1", "")
-            country = match.get("country", "")
-            full_location = f"{location_name}, {state}" if state else location_name
-            if country != "India" and country:
-                full_location += f", {country}"
-        else:
-            if lat is None or lon is None:
-                return {"error": "Please provide a city name or coordinates."}
-            full_location = f"Coordinates ({lat:.2f}, {lon:.2f})"
+                if lat is None or lon is None:
+                    return {"error": "Please provide a city name or coordinates."}
+                full_location = f"Coordinates ({lat:.2f}, {lon:.2f})"
 
-        cache_key = f"{round(float(lat), 3)},{round(float(lon), 3)}"
+            cache_key = f"{round(float(lat), 3)},{round(float(lon), 3)}"
 
-        # 2) Fresh cache: no Open-Meteo calls at all.
-        cached_result, _ = _cache_get(_WEATHER_CACHE, cache_key, WEATHER_CACHE_TTL)
-        if cached_result:
-            return cached_result
+            # 2) Fresh cache: no Open-Meteo calls at all.
+            cached_result, _ = _cache_get(_WEATHER_CACHE, cache_key, WEATHER_CACHE_TTL)
+            if cached_result:
+                return cached_result
 
-        # 3) Keep stale data as a fallback if the provider is temporarily unavailable.
-        stale_result, _ = _cache_get(
-            _WEATHER_CACHE, cache_key, WEATHER_STALE_TTL, allow_stale=True
-        )
+            # 3) Keep stale data as a fallback if the provider is temporarily unavailable.
+            stale_result, _ = _cache_get(
+                _WEATHER_CACHE, cache_key, WEATHER_STALE_TTL, allow_stale=True
+            )
 
-        api_key_param = f"&apikey={OPEN_METEO_API_KEY}" if OPEN_METEO_API_KEY else ""
-        weather_url = (
-            "https://api.open-meteo.com/v1/forecast?"
-            f"latitude={lat}&longitude={lon}"
-            "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m"
-            "&hourly=temperature_2m,relative_humidity_2m,weather_code"
-            "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max"
-            "&timezone=auto"
-            f"{api_key_param}"
-        )
+            api_key_param = f"&apikey={OPEN_METEO_API_KEY}" if OPEN_METEO_API_KEY else ""
+            weather_url = (
+                "https://api.open-meteo.com/v1/forecast?"
+                f"latitude={lat}&longitude={lon}"
+                "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m"
+                "&hourly=temperature_2m,relative_humidity_2m,weather_code"
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max"
+                "&timezone=auto"
+                f"{api_key_param}"
+            )
 
-        try:
-            weather_response = requests.get(weather_url, timeout=10)
-            weather_response.raise_for_status()
-            weather_data = weather_response.json()
-        except requests.RequestException as exc:
+            try:
+                weather_response = requests.get(weather_url, timeout=10)
+                weather_response.raise_for_status()
+                weather_data = weather_response.json()
+            except requests.RequestException as exc:
+                if stale_result:
+                    print(f"Open-Meteo weather request failed ({exc}); serving cached data.")
+                    return stale_result
+                raise
+
+            if "current" not in weather_data:
+                reason = weather_data.get("reason", "Unexpected response from weather API")
+                if stale_result:
+                    print(f"Open-Meteo returned an unexpected response ({reason}); serving cached data.")
+                    return stale_result
+                return {"error": f"Weather API error: {reason}"}
+
+            # 4) AQI is also cached together with the weather result.
+            aqi_url = (
+                "https://air-quality-api.open-meteo.com/v1/air-quality?"
+                f"latitude={lat}&longitude={lon}"
+                "&current=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"
+                f"{api_key_param}"
+            )
+            try:
+                aqi_response = requests.get(aqi_url, timeout=10)
+                aqi_response.raise_for_status()
+                aqi_data = aqi_response.json()
+            except requests.RequestException as exc:
+                if stale_result:
+                    print(f"Open-Meteo AQI request failed ({exc}); serving cached data.")
+                    return stale_result
+                raise
+
+            if "current" not in aqi_data:
+                reason = aqi_data.get("reason", "Unexpected response from AQI API")
+                if stale_result:
+                    print(f"Open-Meteo returned an unexpected AQI response ({reason}); serving cached data.")
+                    return stale_result
+                return {"error": f"AQI API error: {reason}"}
+
+            # 5) Existing MAUSAM processing logic remains unchanged.
+            current = weather_data["current"]
+            temp = current["temperature_2m"]
+            feels_like = current["apparent_temperature"]
+            humidity = current["relative_humidity_2m"]
+            w_code = current["weather_code"]
+            wind_speed = current["wind_speed_10m"]
+            rain = current["rain"] + current["showers"]
+            is_rainy = rain > 0
+            weather_mapped = map_weather_code(w_code)
+            local_dt = datetime.datetime.fromisoformat(current["time"])
+            ritu = get_indian_ritu(local_dt)
+
+            pm25 = aqi_data["current"]["pm2_5"]
+            pm10 = aqi_data["current"]["pm10"]
+            co = aqi_data["current"]["carbon_monoxide"]
+            no2 = aqi_data["current"]["nitrogen_dioxide"]
+            so2 = aqi_data["current"]["sulphur_dioxide"]
+            o3 = aqi_data["current"]["ozone"]
+            aqi_analysis = analyze_aqi(pm25, pm10)
+            recs = get_recommendations(temp, is_rainy, aqi_analysis["category"], w_code)
+            weather_status = get_live_weather_status(
+                w_code, temp, rain, wind_speed, current["is_day"]
+            )
+
+            # Hourly forecast (next 24 hours).
+            hourly = weather_data["hourly"]
+            current_iso = current["time"]
+            current_time_index = 0
+            for idx, t in enumerate(hourly["time"]):
+                if t >= current_iso:
+                    current_time_index = idx
+                    break
+            hourly_list = []
+            for i in range(current_time_index, current_time_index + 24):
+                if i >= len(hourly["time"]):
+                    break
+                h_time = datetime.datetime.fromisoformat(hourly["time"][i])
+                hourly_list.append({
+                    "time": h_time.strftime("%I %p"),
+                    "temp": round(hourly["temperature_2m"][i]),
+                    "humidity": hourly["relative_humidity_2m"][i],
+                    "weather": map_weather_code(hourly["weather_code"][i])
+                })
+
+            # Daily forecast.
+            daily = weather_data["daily"]
+            daily_list = []
+            for i in range(len(daily["time"])):
+                d_date = datetime.date.fromisoformat(daily["time"][i])
+                daily_list.append({
+                    "day": d_date.strftime("%a"),
+                    "date": d_date.strftime("%b %d"),
+                    "temp_max": round(daily["temperature_2m_max"][i]),
+                    "temp_min": round(daily["temperature_2m_min"][i]),
+                    "rain_prob": daily["precipitation_probability_max"][i],
+                    "weather": map_weather_code(daily["weather_code"][i])
+                })
+
+            result = {
+                "city": full_location, "latitude": lat, "longitude": lon,
+                "temp": round(temp), "feels_like": round(feels_like),
+                "humidity": humidity, "wind_speed": wind_speed,
+                "weather_desc": weather_mapped["desc"],
+                "weather_icon": weather_mapped["icon"],
+                "weather_class": weather_mapped["class"],
+                "is_day": current["is_day"], "ritu": ritu,
+                "aqi": {
+                    "pm2_5": pm25, "pm10": pm10, "co": round(co, 1),
+                    "no2": round(no2, 1), "so2": round(so2, 1), "o3": round(o3, 1),
+                    "category": aqi_analysis["category"],
+                    "color": aqi_analysis["cpcb_color"],
+                    "text_color": aqi_analysis["text_color"],
+                    "desc": aqi_analysis["description"]
+                },
+                "tips": recs["tips"],
+                "clothing_men": recs["clothing_men"],
+                "clothing_women": recs["clothing_women"],
+                "weather_status": weather_status,
+                "sunrise": datetime.datetime.fromisoformat(daily["sunrise"][0]).strftime("%I:%M %p"),
+                "sunset": datetime.datetime.fromisoformat(daily["sunset"][0]).strftime("%I:%M %p"),
+                "hourly_forecast": hourly_list,
+                "daily_forecast": daily_list
+            }
+
+            _cache_set(_WEATHER_CACHE, cache_key, result)
+            return result
+
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             if stale_result:
-                print(f"Open-Meteo weather request failed ({exc}); serving cached data.")
+                print("Serving stale cached weather data after unexpected error.")
                 return stale_result
-            raise
-
-        if "current" not in weather_data:
-            reason = weather_data.get("reason", "Unexpected response from weather API")
-            if stale_result:
-                print(f"Open-Meteo returned an unexpected response ({reason}); serving cached data.")
-                return stale_result
-            return {"error": f"Weather API error: {reason}"}
-
-        # 4) AQI is also cached together with the weather result.
-        aqi_url = (
-            "https://air-quality-api.open-meteo.com/v1/air-quality?"
-            f"latitude={lat}&longitude={lon}"
-            "&current=pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone"
-            f"{api_key_param}"
-        )
-        try:
-            aqi_response = requests.get(aqi_url, timeout=10)
-            aqi_response.raise_for_status()
-            aqi_data = aqi_response.json()
-        except requests.RequestException as exc:
-            if stale_result:
-                print(f"Open-Meteo AQI request failed ({exc}); serving cached data.")
-                return stale_result
-            raise
-
-        if "current" not in aqi_data:
-            reason = aqi_data.get("reason", "Unexpected response from AQI API")
-            if stale_result:
-                print(f"Open-Meteo returned an unexpected AQI response ({reason}); serving cached data.")
-                return stale_result
-            return {"error": f"AQI API error: {reason}"}
-
-        # 5) Existing MAUSAM processing logic remains unchanged.
-        current = weather_data["current"]
-        temp = current["temperature_2m"]
-        feels_like = current["apparent_temperature"]
-        humidity = current["relative_humidity_2m"]
-        w_code = current["weather_code"]
-        wind_speed = current["wind_speed_10m"]
-        rain = current["rain"] + current["showers"]
-        is_rainy = rain > 0
-        weather_mapped = map_weather_code(w_code)
-        local_dt = datetime.datetime.fromisoformat(current["time"])
-        ritu = get_indian_ritu(local_dt)
-
-        pm25 = aqi_data["current"]["pm2_5"]
-        pm10 = aqi_data["current"]["pm10"]
-        co = aqi_data["current"]["carbon_monoxide"]
-        no2 = aqi_data["current"]["nitrogen_dioxide"]
-        so2 = aqi_data["current"]["sulphur_dioxide"]
-        o3 = aqi_data["current"]["ozone"]
-        aqi_analysis = analyze_aqi(pm25, pm10)
-        recs = get_recommendations(temp, is_rainy, aqi_analysis["category"], w_code)
-        weather_status = get_live_weather_status(
-            w_code, temp, rain, wind_speed, current["is_day"]
-        )
-
-        # Hourly forecast (next 24 hours).
-        hourly = weather_data["hourly"]
-        current_iso = current["time"]
-        current_time_index = 0
-        for idx, t in enumerate(hourly["time"]):
-            if t >= current_iso:
-                current_time_index = idx
-                break
-        hourly_list = []
-        for i in range(current_time_index, current_time_index + 24):
-            if i >= len(hourly["time"]):
-                break
-            h_time = datetime.datetime.fromisoformat(hourly["time"][i])
-            hourly_list.append({
-                "time": h_time.strftime("%I %p"),
-                "temp": round(hourly["temperature_2m"][i]),
-                "humidity": hourly["relative_humidity_2m"][i],
-                "weather": map_weather_code(hourly["weather_code"][i])
-            })
-
-        # Daily forecast.
-        daily = weather_data["daily"]
-        daily_list = []
-        for i in range(len(daily["time"])):
-            d_date = datetime.date.fromisoformat(daily["time"][i])
-            daily_list.append({
-                "day": d_date.strftime("%a"),
-                "date": d_date.strftime("%b %d"),
-                "temp_max": round(daily["temperature_2m_max"][i]),
-                "temp_min": round(daily["temperature_2m_min"][i]),
-                "rain_prob": daily["precipitation_probability_max"][i],
-                "weather": map_weather_code(daily["weather_code"][i])
-            })
-
-        result = {
-            "city": full_location, "latitude": lat, "longitude": lon,
-            "temp": round(temp), "feels_like": round(feels_like),
-            "humidity": humidity, "wind_speed": wind_speed,
-            "weather_desc": weather_mapped["desc"],
-            "weather_icon": weather_mapped["icon"],
-            "weather_class": weather_mapped["class"],
-            "is_day": current["is_day"], "ritu": ritu,
-            "aqi": {
-                "pm2_5": pm25, "pm10": pm10, "co": round(co, 1),
-                "no2": round(no2, 1), "so2": round(so2, 1), "o3": round(o3, 1),
-                "category": aqi_analysis["category"],
-                "color": aqi_analysis["cpcb_color"],
-                "text_color": aqi_analysis["text_color"],
-                "desc": aqi_analysis["description"]
-            },
-            "tips": recs["tips"],
-            "clothing_men": recs["clothing_men"],
-            "clothing_women": recs["clothing_women"],
-            "weather_status": weather_status,
-            "sunrise": datetime.datetime.fromisoformat(daily["sunrise"][0]).strftime("%I:%M %p"),
-            "sunset": datetime.datetime.fromisoformat(daily["sunset"][0]).strftime("%I:%M %p"),
-            "hourly_forecast": hourly_list,
-            "daily_forecast": daily_list
-        }
-
-        _cache_set(_WEATHER_CACHE, cache_key, result)
-        return result
-
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        if stale_result:
-            print("Serving stale cached weather data after unexpected error.")
-            return stale_result
-        return {"error": f"Failed to retrieve weather data: {str(e)}"}
+            return {"error": f"Failed to retrieve weather data: {str(e)}"}

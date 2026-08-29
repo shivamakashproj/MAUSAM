@@ -5,50 +5,51 @@
 
 /* CSS Variables & Themes Configuration */
 :root {
-    --bg-gradient: linear-gradient(135deg, #0f1016 0%, #151821 100%);
-    --card-bg: rgba(23, 27, 38, 0.65);
+    /* Premium Dark Theme */
+    --bg-gradient: linear-gradient(135deg, #090B10 0%, #171B26 100%);
+    --card-bg: rgba(20, 24, 34, 0.55);
     --card-border: rgba(255, 255, 255, 0.08);
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
+    --text-primary: #F8FAFC;
+    --text-secondary: #94A3B8;
     --saffron: #FF9933;
-    --gold: #FFC72C;
-    --green-accent: #2E7D32;
+    --gold: #FACC15;
+    --green-accent: #22C55E;
     --white: #ffffff;
     --transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Active Accent Defaults */
-    --accent: var(--saffron);
-    --accent-glow: rgba(255, 153, 51, 0.35);
-    --accent-dark: #cc7a29;
+    --accent: var(--gold);
+    --accent-glow: rgba(250, 204, 21, 0.35);
+    --accent-dark: #CA8A04;
 }
 
-/* Seasonal CSS Themes */
+/* Seasonal CSS Themes - Premium Dark Gradients */
 body.theme-spring {
-    --bg-gradient: linear-gradient(135deg, #0e120f 0%, #131b15 100%);
-    --accent: #E5A93B;
-    --accent-glow: rgba(229, 169, 59, 0.35);
-    --accent-dark: #b88123;
+    --bg-gradient: linear-gradient(135deg, #071510 0%, #102117 100%);
+    --accent: #A3E635;
+    --accent-glow: rgba(163, 230, 53, 0.35);
+    --accent-dark: #65A30D;
 }
 
 body.theme-summer {
-    --bg-gradient: linear-gradient(135deg, #150f0b 0%, #20140e 100%);
-    --accent: var(--saffron);
-    --accent-glow: rgba(255, 153, 51, 0.35);
-    --accent-dark: #cc7a29;
+    --bg-gradient: linear-gradient(135deg, #1A0D08 0%, #26120C 100%);
+    --accent: #FBA918;
+    --accent-glow: rgba(251, 169, 24, 0.35);
+    --accent-dark: #D97706;
 }
 
 body.theme-monsoon {
-    --bg-gradient: linear-gradient(135deg, #071011 0%, #0d1a1c 100%);
-    --accent: #00897B;
-    --accent-glow: rgba(0, 137, 123, 0.35);
-    --accent-dark: #004D40;
+    --bg-gradient: linear-gradient(135deg, #041419 0%, #0A2129 100%);
+    --accent: #2DD4BF;
+    --accent-glow: rgba(45, 212, 191, 0.35);
+    --accent-dark: #0F766E;
 }
 
 body.theme-winter {
-    --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #121829 100%);
-    --accent: #5C6BC0;
-    --accent-glow: rgba(92, 107, 192, 0.35);
-    --accent-dark: #3F51B5;
+    --bg-gradient: linear-gradient(135deg, #09101E 0%, #0F172A 100%);
+    --accent: #60A5FA;
+    --accent-glow: rgba(96, 165, 250, 0.35);
+    --accent-dark: #2563EB;
 }
 
 /* Base resets */
